@@ -62,3 +62,4 @@ Podfile.lock
 # PlatformIO関連
 .pio/
 .env
+config.h

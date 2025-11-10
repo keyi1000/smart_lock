@@ -1,0 +1,63 @@
+# Created by https://www.toptal.com/developers/gitignore/api/c++,platformio
+# Edit at https://www.toptal.com/developers/gitignore?templates=c++,platformio
+
+### C++ ###
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+### PlatformIO ###
+.pioenvs
+.piolibdeps
+.clang_complete
+.gcc-flags.json
+.pio
+
+# End of https://www.toptal.com/developers/gitignore/api/c++,platformio
+
+# CocoaPods関連
+.cocoapods/
+Pods/
+Podfile.lock
+
+# 設定ファイル
+.condarc
+.gitignore_global
+
+# macOS関連
+.DS_Store
+
+# VSCode関連
+.vscode/
+
+# PlatformIO関連
+.pio/

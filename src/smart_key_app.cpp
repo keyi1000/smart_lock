@@ -1,9 +1,11 @@
 #include "smart_key_app.h"
 #include "wifi/wifi_connect.h"
+#include "http/http_server.h"
 #include "config.h"
 #include <M5Unified.h>
 
 WiFiConnect wifiConnect;
+HTTPServer httpServer;
 
 void SmartKeyApp::begin() {
     M5.begin();
@@ -12,9 +14,13 @@ void SmartKeyApp::begin() {
     
     // WiFi接続 (config.hから読み込み)
     wifiConnect.begin(WIFI_SSID, WIFI_PASSWORD);
+    
+    // HTTPサーバー起動
+    httpServer.begin();
 }
 
 void SmartKeyApp::run() {
     M5.update();
-    delay(100);
+    httpServer.handleClient();
+    delay(10);
 }

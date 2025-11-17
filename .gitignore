@@ -63,3 +63,5 @@ Podfile.lock
 .pio/
 .env
 config.h
+/img
+/data

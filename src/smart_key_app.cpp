@@ -2,11 +2,13 @@
 #include "wifi/wifi_connect.h"
 #include "http/http_server.h"
 #include "config.h"
+#include "mqtt/mqtt_manager.h"
 #include <M5Unified.h>
 #include <LittleFS.h>
 
 WiFiConnect wifiConnect;
 HTTPServer httpServer;
+MqttManager mqttManager;
 
 void SmartKeyApp::begin() {
     // シリアル通信初期化
@@ -45,6 +47,16 @@ void SmartKeyApp::begin() {
     wifiConnect.begin(WIFI_SSID, WIFI_PASSWORD);
     Serial.println("WiFi connected!");
     Serial.println("WiFi connected!");
+    // MQTT 初期化（オプション）
+    Serial.println("Initializing MQTT...");
+    mqttManager.begin(MQTT_BROKER, MQTT_PORT, MQTT_CLIENT_ID);
+    mqttManager.setMessageHandler([](const char* topic, const uint8_t* payload, unsigned int length){
+        Serial.print("MQTT received ["); Serial.print(topic); Serial.print("]: ");
+        String msg;
+        for (unsigned int i = 0; i < length; i++) msg += (char)payload[i];
+        Serial.println(msg);
+        // 受信コマンドに応じた処理をここに追加してください
+    });
     
     // HTTPサーバー起動
     Serial.println("Starting HTTP server...");
@@ -64,5 +76,16 @@ void SmartKeyApp::begin() {
 void SmartKeyApp::run() {
     M5.update();
     httpServer.handleClient();
+    // MQTT ループ処理
+    mqttManager.loop();
+
+    // 例: 定期的にステータスメッセージを送信
+    static unsigned long lastPub = 0;
+    if (millis() - lastPub > 10000) {
+        lastPub = millis();
+        String payload = "online";
+        if (LittleFS.exists("/shibata.jpg")) payload = "file_present";
+        mqttManager.publish(MQTT_TOPIC_PUB, payload.c_str());
+    }
     delay(10);
 }

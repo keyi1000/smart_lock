@@ -1,0 +1,10 @@
+.git
+.gitignore
+README.md
+.env
+.env.*
+*.md
+.github
+k8s
+argocd
+vendor

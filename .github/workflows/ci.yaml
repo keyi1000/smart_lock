@@ -1,0 +1,63 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  DOCKER_IMAGE: keyi1000/smart-lock-backend # Docker Hubのユーザー名/イメージ名に変更
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: "1.21"
+
+      - name: Run tests
+        run: |
+          cd app
+          go mod download
+          go test -v ./...
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.DOCKER_IMAGE }}:latest
+            ${{ env.DOCKER_IMAGE }}:${{ github.sha }}
+          cache-from: type=registry,ref=${{ env.DOCKER_IMAGE }}:buildcache
+          cache-to: type=registry,ref=${{ env.DOCKER_IMAGE }}:buildcache,mode=max
+
+      - name: Update Kubernetes manifests
+        run: |
+          sed -i "s|image: .*|image: ${{ env.DOCKER_IMAGE }}:${{ github.sha }}|g" k8s/deployment.yaml
+
+      - name: Commit and push updated manifests
+        run: |
+          git config --global user.name 'GitHub Actions'
+          git config --global user.email 'actions@github.com'
+          git add k8s/deployment.yaml
+          git diff --staged --quiet || git commit -m "Update image to ${{ github.sha }}"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

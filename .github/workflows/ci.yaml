@@ -7,13 +7,12 @@ on:
     branches: [main]
 
 env:
-  DOCKER_IMAGE: keyi1000/smart-lock-backend # Docker Hubのユーザー名/イメージ名に変更
+  DOCKER_IMAGE: keyi1000/smart-lock-backend
+  MANIFEST_REPO: keyi1000/smart-lock-manifests
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
 
     steps:
       - name: Checkout code
@@ -50,16 +49,23 @@ jobs:
           cache-from: type=registry,ref=${{ env.DOCKER_IMAGE }}:buildcache
           cache-to: type=registry,ref=${{ env.DOCKER_IMAGE }}:buildcache,mode=max
 
+      - name: Checkout manifest repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.MANIFEST_REPO }}
+          token: ${{ secrets.PAT_TOKEN }}
+          path: manifests
+
       - name: Update Kubernetes manifests
         run: |
-          sed -i "s|image: .*|image: ${{ env.DOCKER_IMAGE }}:${{ github.sha }}|g" k8s/deployment.yaml
+          cd manifests
+          sed -i "s|image: .*smart-lock-backend.*|image: ${{ env.DOCKER_IMAGE }}:${{ github.sha }}|g" k8s/deployment.yaml
 
       - name: Commit and push updated manifests
         run: |
+          cd manifests
           git config --global user.name 'GitHub Actions'
           git config --global user.email 'actions@github.com'
           git add k8s/deployment.yaml
           git diff --staged --quiet || git commit -m "Update image to ${{ github.sha }}"
           git push
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

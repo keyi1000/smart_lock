@@ -5,10 +5,11 @@ metadata:
   labels:
     app: smart-lock-api
 spec:
-  type: ClusterIP # LoadBalancerやNodePortに変更可能
+  type: NodePort
   ports:
     - port: 80
       targetPort: 8080
+      nodePort: 30080 # 30000-32767の範囲で指定
       protocol: TCP
       name: http
   selector:

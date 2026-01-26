@@ -63,7 +63,7 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 
 	resp := Response{
 		Status:  "healthy",
-		Message: "Smart Lock API is running",
+		Message: "Smart Lock api is running",
 	}
 
 	json.NewEncoder(w).Encode(resp)

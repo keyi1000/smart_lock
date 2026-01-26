@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: smart-lock-api
-          image: keyi1000/smart-lock-backend:latest # Docker Hubのユーザー名に変更してください
+          image: keyi1000/smart-lock-backend:9d680d95599375b261fd14ae084fd0ac3a0cb32f
           imagePullPolicy: Always
           ports:
             - containerPort: 8080

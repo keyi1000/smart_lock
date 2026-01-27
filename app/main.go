@@ -1,81 +1,92 @@
 package main
 
 import (
-	"database/sql"
-	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
-	"os"
 
-	_ "github.com/lib/pq"
+	"smart_lock_back/domain/entity"
+	"smart_lock_back/infrastructure/persistence"
+	"smart_lock_back/interface/handler"
+	"smart_lock_back/interface/middleware"
+	"smart_lock_back/interface/presenter"
+	"smart_lock_back/usecase"
+
+	"smart_lock_back/infrastructure/database"
 )
-//
-type Response struct {
-	Status  string `json:"status"`
-	Message string `json:"message"`
-}
-
-var db *sql.DB
 
 func main() {
-	var err error
+	// Initialize the database connection
+	if err := database.Initialize(); err != nil {
+		log.Fatalf("Failed to initialize database: %v", err)
+	}
 
-	// データベース接続
-	dbHost := os.Getenv("DB_HOST")
-	dbPort := os.Getenv("DB_PORT")
-	dbUser := os.Getenv("DB_USER")
-	dbPassword := os.Getenv("DB_PASSWORD")
-	dbName := os.Getenv("DB_NAME")
+	db := database.GetDB()
 
-	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		dbHost, dbPort, dbUser, dbPassword, dbName)
+	// Auto migrate the database tables
+	log.Println("Starting database migration...")
+	// UserRoomテーブルを先にドロップ（外部キー制約のため）
+	if err := db.Migrator().DropTable(&entity.UserRoom{}); err != nil {
+		log.Printf("Note: Could not drop UserRoom table (may not exist): %v", err)
+	}
+	if err := db.Migrator().DropTable(&entity.Room{}); err != nil {
+		log.Printf("Note: Could not drop Room table (may not exist): %v", err)
+	}
+	if err := db.AutoMigrate(&entity.User{}, &entity.Room{}, &entity.UserRoom{}); err != nil {
+		log.Fatalf("Failed to migrate database: %v", err)
+	}
+	log.Println("Database migration completed successfully")
 
-	db, err = sql.Open("postgres", connStr)
-	if err != nil {
-		log.Printf("Warning: Database connection failed: %v", err)
-	} else {
-		defer db.Close()
-		if err = db.Ping(); err != nil {
-			log.Printf("Warning: Database ping failed: %v", err)
-		} else {
-			log.Println("Database connected successfully")
+	// 初期データを作成
+	var roomCount int64
+	db.Model(&entity.Room{}).Count(&roomCount)
+	if roomCount == 0 {
+		log.Println("Creating initial room data...")
+		initialRooms := []entity.Room{
+			{RoomName: "101"},
+			{RoomName: "102"},
+			{RoomName: "103"},
 		}
+		for _, room := range initialRooms {
+			if err := db.Create(&room).Error; err != nil {
+				log.Printf("Failed to create room %s: %v", room.RoomName, err)
+			}
+		}
+		log.Println("Initial room data created successfully")
 	}
 
-	// ルーティング
-	http.HandleFunc("/health", healthHandler)
-	http.HandleFunc("/", rootHandler)
+	// Initialize repositories
+	userRepo := persistence.NewUserRepository(db)
+	roomRepo := persistence.NewRoomRepository(db)
+	userRoomRepo := persistence.NewUserRoomRepository(db)
 
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
+	// Initialize use cases
+	authUsecase := usecase.NewAuthUsecase(userRepo)
+	roomUsecase := usecase.NewRoomUsecase(roomRepo, userRoomRepo)
+
+	// Initialize presenters
+	authPresenter := presenter.NewAuthPresenter()
+	roomPresenter := presenter.NewRoomPresenter()
+
+	// Initialize handlers
+	authHandler := handler.NewAuthHandler(authUsecase, authPresenter)
+	roomHandler := handler.NewRoomHandler(roomUsecase, roomPresenter)
+
+	// Define routes
+	http.HandleFunc("/api/register", authHandler.Register)
+	http.HandleFunc("/api/login", authHandler.Login)
+	http.HandleFunc("/api/me", middleware.AuthMiddleware(authHandler.Me))
+
+	// Room routes
+	http.HandleFunc("/api/rooms", roomHandler.GetAllRooms)
+	http.HandleFunc("/api/my-bookings", middleware.AuthMiddleware(roomHandler.GetMyBookings))
+	http.HandleFunc("/api/book-room", middleware.AuthMiddleware(roomHandler.BookRoom))
+	http.HandleFunc("/api/cancel-booking", middleware.AuthMiddleware(roomHandler.CancelBooking))
+	// Smart lock route (no authentication)
+	http.HandleFunc("/api/ble-uuid", roomHandler.GetBleUuid)
+
+	// Start the server
+	log.Println("Server is running on :8080")
+	if err := http.ListenAndServe(":8080", nil); err != nil {
+		log.Fatalf("Failed to start server: %v", err)
 	}
-
-	log.Printf("Server starting on port %s", port)
-	if err := http.ListenAndServe(":"+port, nil); err != nil {
-		log.Fatal(err)
-	}
-}
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	resp := Response{
-		Status:  "healthy",
-		Message: "Smart Lock pushtestwebhookAPI is running",
-	}
-
-	json.NewEncoder(w).Encode(resp)
-}
-
-func rootHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	resp := Response{
-		Status:  "ok",
-		Message: "Welcome to Smart Lock API",
-	}
-
-	json.NewEncoder(w).Encode(resp)
 }

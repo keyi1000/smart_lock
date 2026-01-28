@@ -9,7 +9,7 @@ RUN go mod download
 
 # ソースコードをコピー
 COPY app/ .
-
+#
 # バイナリをビルド
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main .
 

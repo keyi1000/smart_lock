@@ -84,6 +84,12 @@ func main() {
 	// Smart lock route (no authentication)
 	http.HandleFunc("/api/ble-uuid", roomHandler.GetBleUuid)
 
+	// Health check endpoint
+	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	})
+
 	// Start the server
 	log.Println("Server is running on :8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {

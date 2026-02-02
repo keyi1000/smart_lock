@@ -31,6 +31,9 @@ func main() {
 	if err := db.Migrator().DropTable(&entity.Room{}); err != nil {
 		log.Printf("Note: Could not drop Room table (may not exist): %v", err)
 	}
+	if err := db.Migrator().DropTable(&entity.User{}); err != nil {
+		log.Printf("Note: Could not drop User table (may not exist): %v", err)
+	}
 	if err := db.AutoMigrate(&entity.User{}, &entity.Room{}, &entity.UserRoom{}); err != nil {
 		log.Fatalf("Failed to migrate database: %v", err)
 	}

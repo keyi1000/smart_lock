@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
-//テスト
+//ハードコード
 // グローバルDB変数
 var DB *gorm.DB
 

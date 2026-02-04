@@ -12,8 +12,10 @@ import (
 	"smart_lock_back/usecase"
 
 	"smart_lock_back/infrastructure/database"
+
+	"gorm.io/gorm"
 )
-//
+
 func main() {
 	// Initialize the database connection
 	if err := database.Initialize(); err != nil {
@@ -35,9 +37,9 @@ func main() {
 	if roomCount == 0 {
 		log.Println("Creating initial room data...")
 		initialRooms := []entity.Room{
-			{RoomName: "101"},
-			{RoomName: "102"},
-			{RoomName: "103"},
+			{Model: gorm.Model{ID: 101}, RoomName: "101"},
+			{Model: gorm.Model{ID: 102}, RoomName: "102"},
+			{Model: gorm.Model{ID: 103}, RoomName: "103"},
 		}
 		for _, room := range initialRooms {
 			if err := db.Create(&room).Error; err != nil {

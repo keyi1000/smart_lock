@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"smart_lock_back/domain/entity"
 	"smart_lock_back/domain/repository"
 
@@ -102,6 +103,12 @@ func (u *roomUsecase) GetRoomKeysForUser(userID uint) ([]map[string]interface{},
 
 	results := make([]map[string]interface{}, 0, len(userRooms))
 
+	// 環境変数から鍵サーバーのURLを取得
+	keyServerBaseURL := os.Getenv("KEY_SERVER_URL")
+	if keyServerBaseURL == "" {
+		keyServerBaseURL = "http://192.168.11.24:8081" // デフォルト値
+	}
+
 	for _, userRoom := range userRooms {
 		// 部屋情報を取得
 		room, err := u.roomRepo.FindByID(userRoom.RoomID)
@@ -109,8 +116,8 @@ func (u *roomUsecase) GetRoomKeysForUser(userID uint) ([]map[string]interface{},
 			continue
 		}
 
-		// 8081番ポートの鍵サーバーにリクエスト
-		keyServerURL := fmt.Sprintf("http://localhost:8081/api/keys/%s/public", room.RoomName)
+		// 鍵サーバーにリクエスト
+		keyServerURL := fmt.Sprintf("%s/api/keys/%s/public", keyServerBaseURL, room.RoomName)
 		resp, err := http.Get(keyServerURL)
 		if err != nil {
 			continue

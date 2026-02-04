@@ -84,6 +84,7 @@ func main() {
 	http.HandleFunc("/api/my-bookings", middleware.AuthMiddleware(roomHandler.GetMyBookings))
 	http.HandleFunc("/api/book-room", middleware.AuthMiddleware(roomHandler.BookRoom))
 	http.HandleFunc("/api/cancel-booking", middleware.AuthMiddleware(roomHandler.CancelBooking))
+	http.HandleFunc("/api/rooms/key", middleware.AuthMiddleware(roomHandler.GetRoomKey))
 	// Smart lock route (no authentication)
 	http.HandleFunc("/api/ble-uuid", roomHandler.GetBleUuid)
 

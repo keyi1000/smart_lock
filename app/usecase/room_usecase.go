@@ -1,7 +1,10 @@
 package usecase
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
+	"net/http"
 	"smart_lock_back/domain/entity"
 	"smart_lock_back/domain/repository"
 
@@ -14,6 +17,7 @@ type RoomUsecase interface {
 	GetAllRooms() ([]*entity.Room, error)
 	CancelBooking(userID uint, bookingID uint) error
 	GetBleUuidByRoomID(roomID uint) ([]string, error)
+	GetRoomKeyForUser(userID uint, roomID uint) (string, error)
 }
 
 type roomUsecase struct {
@@ -83,4 +87,42 @@ func (u *roomUsecase) GetBleUuidByRoomID(roomID uint) ([]string, error) {
 	}
 
 	return uuids, nil
+}
+
+func (u *roomUsecase) GetRoomKeyForUser(userID uint, roomID uint) (string, error) {
+	// 部屋が存在するか確認
+	room, err := u.roomRepo.FindByID(roomID)
+	if err != nil {
+		return "", errors.New("room not found")
+	}
+
+	// ユーザーがこの部屋を予約しているか確認
+	hasBooking, err := u.userRoomRepo.ExistsByUserAndRoom(userID, roomID)
+	if err != nil {
+		return "", err
+	}
+	if !hasBooking {
+		return "", errors.New("you have not booked this room")
+	}
+
+	// 8081番ポートの鍵サーバーにリクエスト
+	keyServerURL := fmt.Sprintf("http://localhost:8081/api/keys/%s/public", room.RoomName)
+	resp, err := http.Get(keyServerURL)
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch key from key server: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("key server returned status: %d", resp.StatusCode)
+	}
+
+	var keyResponse struct {
+		PublicKey string `json:"public_key"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&keyResponse); err != nil {
+		return "", fmt.Errorf("failed to decode key response: %v", err)
+	}
+
+	return keyResponse.PublicKey, nil
 }

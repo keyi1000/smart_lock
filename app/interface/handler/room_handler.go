@@ -147,26 +147,11 @@ func (h *RoomHandler) GetBleUuid(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// GetRoomKey handles fetching the public key for a booked room (GET /api/rooms/:id/key)
+// GetRoomKey handles fetching the public keys for all booked rooms (GET /api/rooms/keys)
 func (h *RoomHandler) GetRoomKey(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value("user_id").(uint)
 
-	// URLからroom_idを取得
-	roomIDStr := r.URL.Query().Get("room_id")
-	if roomIDStr == "" {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(h.Presenter.PresentError("Room ID is required"))
-		return
-	}
-
-	roomID, err := strconv.ParseUint(roomIDStr, 10, 32)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(h.Presenter.PresentError("Invalid room ID"))
-		return
-	}
-
-	publicKey, err := h.RoomUsecase.GetRoomKeyForUser(userID, uint(roomID))
+	keys, err := h.RoomUsecase.GetRoomKeysForUser(userID)
 	if err != nil {
 		w.WriteHeader(http.StatusForbidden)
 		json.NewEncoder(w).Encode(h.Presenter.PresentError(err.Error()))
@@ -176,7 +161,6 @@ func (h *RoomHandler) GetRoomKey(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"room_id":    roomID,
-		"public_key": publicKey,
+		"keys": keys,
 	})
 }

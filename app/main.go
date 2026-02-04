@@ -24,16 +24,6 @@ func main() {
 
 	// Auto migrate the database tables
 	log.Println("Starting database migration...")
-	// UserRoomテーブルを先にドロップ（外部キー制約のため）
-	if err := db.Migrator().DropTable(&entity.UserRoom{}); err != nil {
-		log.Printf("Note: Could not drop UserRoom table (may not exist): %v", err)
-	}
-	if err := db.Migrator().DropTable(&entity.Room{}); err != nil {
-		log.Printf("Note: Could not drop Room table (may not exist): %v", err)
-	}
-	if err := db.Migrator().DropTable(&entity.User{}); err != nil {
-		log.Printf("Note: Could not drop User table (may not exist): %v", err)
-	}
 	if err := db.AutoMigrate(&entity.User{}, &entity.Room{}, &entity.UserRoom{}); err != nil {
 		log.Fatalf("Failed to migrate database: %v", err)
 	}
@@ -84,7 +74,7 @@ func main() {
 	http.HandleFunc("/api/my-bookings", middleware.AuthMiddleware(roomHandler.GetMyBookings))
 	http.HandleFunc("/api/book-room", middleware.AuthMiddleware(roomHandler.BookRoom))
 	http.HandleFunc("/api/cancel-booking", middleware.AuthMiddleware(roomHandler.CancelBooking))
-	http.HandleFunc("/api/rooms/key", middleware.AuthMiddleware(roomHandler.GetRoomKey))
+	http.HandleFunc("/api/rooms/keys", middleware.AuthMiddleware(roomHandler.GetRoomKey))
 	// Smart lock route (no authentication)
 	http.HandleFunc("/api/ble-uuid", roomHandler.GetBleUuid)
 

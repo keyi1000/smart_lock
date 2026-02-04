@@ -17,7 +17,7 @@ type RoomUsecase interface {
 	GetAllRooms() ([]*entity.Room, error)
 	CancelBooking(userID uint, bookingID uint) error
 	GetBleUuidByRoomID(roomID uint) ([]string, error)
-	GetRoomKeyForUser(userID uint, roomID uint) (string, error)
+	GetRoomKeysForUser(userID uint) ([]map[string]interface{}, error)
 }
 
 type roomUsecase struct {
@@ -89,40 +89,52 @@ func (u *roomUsecase) GetBleUuidByRoomID(roomID uint) ([]string, error) {
 	return uuids, nil
 }
 
-func (u *roomUsecase) GetRoomKeyForUser(userID uint, roomID uint) (string, error) {
-	// 部屋が存在するか確認
-	room, err := u.roomRepo.FindByID(roomID)
+func (u *roomUsecase) GetRoomKeysForUser(userID uint) ([]map[string]interface{}, error) {
+	// ユーザーの予約を取得
+	userRooms, err := u.userRoomRepo.FindByUserID(userID)
 	if err != nil {
-		return "", errors.New("room not found")
+		return nil, err
 	}
 
-	// ユーザーがこの部屋を予約しているか確認
-	hasBooking, err := u.userRoomRepo.ExistsByUserAndRoom(userID, roomID)
-	if err != nil {
-		return "", err
-	}
-	if !hasBooking {
-		return "", errors.New("you have not booked this room")
+	if len(userRooms) == 0 {
+		return nil, errors.New("you have no room bookings")
 	}
 
-	// 8081番ポートの鍵サーバーにリクエスト
-	keyServerURL := fmt.Sprintf("http://localhost:8081/api/keys/%s/public", room.RoomName)
-	resp, err := http.Get(keyServerURL)
-	if err != nil {
-		return "", fmt.Errorf("failed to fetch key from key server: %v", err)
-	}
-	defer resp.Body.Close()
+	results := make([]map[string]interface{}, 0, len(userRooms))
 
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("key server returned status: %d", resp.StatusCode)
+	for _, userRoom := range userRooms {
+		// 部屋情報を取得
+		room, err := u.roomRepo.FindByID(userRoom.RoomID)
+		if err != nil {
+			continue
+		}
+
+		// 8081番ポートの鍵サーバーにリクエスト
+		keyServerURL := fmt.Sprintf("http://localhost:8081/api/keys/%s/public", room.RoomName)
+		resp, err := http.Get(keyServerURL)
+		if err != nil {
+			continue
+		}
+
+		if resp.StatusCode == http.StatusOK {
+			var keyResponse struct {
+				PublicKey string `json:"public_key"`
+			}
+			if err := json.NewDecoder(resp.Body).Decode(&keyResponse); err == nil {
+				results = append(results, map[string]interface{}{
+					"room_id":    room.ID,
+					"room_name":  room.RoomName,
+					"public_key": keyResponse.PublicKey,
+					"booking_id": userRoom.ID,
+				})
+			}
+		}
+		resp.Body.Close()
 	}
 
-	var keyResponse struct {
-		PublicKey string `json:"public_key"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&keyResponse); err != nil {
-		return "", fmt.Errorf("failed to decode key response: %v", err)
+	if len(results) == 0 {
+		return nil, errors.New("failed to fetch keys from key server")
 	}
 
-	return keyResponse.PublicKey, nil
+	return results, nil
 }

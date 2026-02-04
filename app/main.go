@@ -13,7 +13,7 @@ import (
 
 	"smart_lock_back/infrastructure/database"
 )
-
+//
 func main() {
 	// Initialize the database connection
 	if err := database.Initialize(); err != nil {

@@ -105,6 +105,9 @@ void SmartKeyApp::run() {
     M5.update();
     httpServer.handleClient();
     
+    // BLEマネージャーの更新処理（秘密鍵取得など）
+    bleConnectionManager.update();
+    
     // BLE接続管理：切断後の広告再開処理
     static bool oldDeviceConnected = false;
     bool currentConnected = bleConnectionManager.isConnected();
